@@ -20,10 +20,12 @@ from sys import stderr, hexversion
 logging.basicConfig(stream=stderr)
 
 import hmac
+import errno
 from hashlib import sha1
 from json import loads, dumps
 from subprocess import Popen, PIPE
 from tempfile import mkstemp
+import os
 from os import access, X_OK, remove, fdopen
 from os.path import isfile, abspath, normpath, dirname, join, basename
 
@@ -164,34 +166,40 @@ def index():
         return dumps({'status': 'nop'})
 
     # Save payload to temporal file
-    osfd, tmpfile = mkstemp()
-    with fdopen(osfd, 'w') as pf:
+    # osfd, tmpfile = mkstemp()
+    # with fdopen(osfd, 'w') as pf:
+    #     pf.write(dumps(payload))
+
+    # Branch can include '/' which means it becomes a path, not just a file name
+    # If we don't prepare the path first, open() will fail
+    mkdir_p(os.path.join('/tmp', name, os.path.dirname(branch)))
+    with open('/tmp/%s/%s' % (name, branch), 'w') as pf:
         pf.write(dumps(payload))
 
     # Run scripts
     ran = {}
-    for s in scripts:
+    # for s in scripts:
 
-        proc = Popen(
-            [s, tmpfile, event],
-            stdout=PIPE, stderr=PIPE
-        )
-        stdout, stderr = proc.communicate()
+    #     proc = Popen(
+    #         [s, tmpfile, event],
+    #         stdout=PIPE, stderr=PIPE
+    #     )
+    #     stdout, stderr = proc.communicate()
 
-        ran[basename(s)] = {
-            'returncode': proc.returncode,
-            'stdout': stdout.decode('utf-8'),
-            'stderr': stderr.decode('utf-8'),
-        }
+    #     ran[basename(s)] = {
+    #         'returncode': proc.returncode,
+    #         'stdout': stdout.decode('utf-8'),
+    #         'stderr': stderr.decode('utf-8'),
+    #     }
 
-        # Log errors if a hook failed
-        if proc.returncode != 0:
-            logging.error('{} : {} \n{}'.format(
-                s, proc.returncode, stderr
-            ))
+    #     # Log errors if a hook failed
+    #     if proc.returncode != 0:
+    #         logging.error('{} : {} \n{}'.format(
+    #             s, proc.returncode, stderr
+    #         ))
 
     # Remove temporal file
-    remove(tmpfile)
+    # remove(tmpfile)
 
     info = config.get('return_scripts_info', False)
     if not info:
@@ -200,6 +208,16 @@ def index():
     output = dumps(ran, sort_keys=True, indent=4)
     logging.info(output)
     return output
+
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
 
 
 if __name__ == '__main__':
