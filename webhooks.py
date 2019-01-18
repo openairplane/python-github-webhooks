@@ -162,8 +162,8 @@ def index():
 
     # Check permissions
     scripts = [s for s in scripts if isfile(s) and access(s, X_OK)]
-    if not scripts:
-        return dumps({'status': 'nop'})
+    # if not scripts:
+    #     return dumps({'status': 'nop'})
 
     # Save payload to temporal file
     # osfd, tmpfile = mkstemp()
